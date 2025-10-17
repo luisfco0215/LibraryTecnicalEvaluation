@@ -50,7 +50,7 @@ namespace LibraryTecnicalEvaluation.Repository
             try
             {
                 var libro = await _context.Libros
-                    .Include(autor => autor)
+                    .Include(autor => autor.Autores)
                     .FirstOrDefaultAsync(libro => libro.Libro_Id == id);
 
                 if (libro == null) return null;

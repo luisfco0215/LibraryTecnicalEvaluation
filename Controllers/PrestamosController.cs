@@ -18,7 +18,7 @@ namespace LibraryTecnicalEvaluation.Controllers
 
 
         [HttpGet]
-        public async Task<IActionResult> GetAllPrestamos(int id)
+        public async Task<IActionResult> GetAllPrestamos()
         {
             try
             {
@@ -39,21 +39,43 @@ namespace LibraryTecnicalEvaluation.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetNoDevueltos()
         {
-            var result = await _prestamosRepository.GetPrestamosNoDevueltos();
+            try
+            {
+                var result = await _prestamosRepository.GetPrestamosNoDevueltos();
 
-            if (!result.Any())
-                return NotFound(new { mensaje = "No hay préstamos pendientes de devolución." });
+                if (!result.Any())
+                    return NotFound(new { mensaje = "No hay préstamos pendientes de devolución." });
 
-            return Ok(result);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    mensaje = "Ocurrió un error al obtener los préstamos pendientes de devolución.",
+                    detalle = ex.Message
+                });
+            }
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var prestamo = await _prestamosRepository.GetPrestamoById(id);
+            try
+            {
+                var prestamo = await _prestamosRepository.GetPrestamoById(id);
 
-            if (prestamo is null) return NotFound();
-            return Ok(prestamo);
+                if (prestamo is null) return NotFound();
+                return Ok(prestamo);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    mensaje = "Ocurrió un error al obtener los préstamos por Id.",
+                    detalle = ex.Message
+                });
+            }
         }
 
         [HttpPost]
@@ -101,40 +123,62 @@ namespace LibraryTecnicalEvaluation.Controllers
         [Authorize]
         public async Task<IActionResult> Update(int id, [FromBody] CreatePrestamoDto request)
         {
-            if (request.Fecha_Devolucion == null)
-                return BadRequest(new { mensaje = "Debe especificar una fecha de devolución válida." });
-
-            var prestamo = await _prestamosRepository.UpdateFechaDevolucion(id, request.Fecha_Devolucion.Value);
-
-            if (prestamo is null)
-                return NotFound(new { mensaje = $"No se encontró un préstamo con ID {id}." });
-
-            return Ok(new
+            try
             {
-                mensaje = "Fecha de devolución actualizada correctamente.",
-                prestamo.Prestamo_Id,
-                prestamo.Fecha_Devolucion
-            });
+                if (request.Fecha_Devolucion == null)
+                    return BadRequest(new { mensaje = "Debe especificar una fecha de devolución válida." });
+
+                var prestamo = await _prestamosRepository.UpdateFechaDevolucion(id, request.Fecha_Devolucion.Value);
+
+                if (prestamo is null)
+                    return NotFound(new { mensaje = $"No se encontró un préstamo con ID {id}." });
+
+                return Ok(new
+                {
+                    mensaje = "Fecha de devolución actualizada correctamente.",
+                    prestamo.Prestamo_Id,
+                    prestamo.Fecha_Devolucion
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    mensaje = "Ocurrió un error al editar los préstamos.",
+                    detalle = ex.Message
+                });
+            }
         }
 
         [HttpDelete("{id}")]
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            var prestamo = await _prestamosRepository.GetPrestamoById(id);
-            if (prestamo is null)
-                return NotFound(new { mensaje = $"No se encontró un préstamo con ID {id}." });
-
-            var currentUser = GetCurrentUserId();
-            if (!User.IsInRole("Admin"))
+            try
             {
-                if (currentUser == null || prestamo.UsuarioId != currentUser)
-                    return Forbid();
+                var prestamo = await _prestamosRepository.GetPrestamoById(id);
+                if (prestamo is null)
+                    return NotFound(new { mensaje = $"No se encontró un préstamo con ID {id}." });
+
+                var currentUser = GetCurrentUserId();
+                if (!User.IsInRole("Admin"))
+                {
+                    if (currentUser == null || prestamo.UsuarioId != currentUser)
+                        return Forbid();
+                }
+
+                await _prestamosRepository.DeletePrestamos(prestamo);
+
+                return Ok(new { mensaje = $"El préstamo con ID {id} fue eliminado correctamente." });
             }
-
-            await _prestamosRepository.DeletePrestamos(prestamo);
-
-            return Ok(new { mensaje = $"El préstamo con ID {id} fue eliminado correctamente." });
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    mensaje = "Ocurrió un error al eliminar los préstamos.",
+                    detalle = ex.Message
+                });
+            }
         }
     }
 }
